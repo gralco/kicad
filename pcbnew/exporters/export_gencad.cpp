@@ -234,26 +234,6 @@ static bool storeOriginCoords;
 // These are the export origin (the auxiliary axis)
 static int GencadOffsetX, GencadOffsetY;
 
-// Association between shape names (using shapeName index) and components
-static std::map<MODULE*, int> componentShapes;
-static std::map<int, wxString> shapeNames;
-
-static const wxString& getShapeName( MODULE* aModule )
-{
-    static const wxString invalid( "invalid" );
-
-    if( individualShapes )
-        return aModule->GetReference();
-
-    auto itShape = componentShapes.find( aModule );
-    wxCHECK( itShape != componentShapes.end(), invalid );
-
-    auto itName = shapeNames.find( itShape->second );
-    wxCHECK( itName != shapeNames.end(), invalid );
-
-    return itName->second;
-}
-
 // GerbTool chokes on units different than INCH so this is the conversion factor
 const static double SCALE_FACTOR = 1000.0 * IU_PER_MILS;
 
@@ -271,6 +251,9 @@ static double MapYTo( int aY )
     return (GencadOffsetY - aY) / SCALE_FACTOR;
 }
 
+// Association between shape names (using shapeName index) and components
+static std::map<MODULE*, int> componentShapes;
+static std::map<int, wxString> shapeNames;
 
 /* Driver function: processing starts here */
 void PCB_EDIT_FRAME::ExportToGenCAD( wxCommandEvent& aEvent )
@@ -879,7 +862,7 @@ static void CreateComponentsSection( FILE* aFile, BOARD* aPcb )
         fprintf( aFile, "\nCOMPONENT \"%s\"\n",
                  TO_UTF8( escapeString( module->GetReference() ) ) );
         fprintf( aFile, "DEVICE \"DEV_%s\"\n",
-                 TO_UTF8( escapeString( getShapeName( module ) ) ) );
+                 TO_UTF8( escapeString( module->GetFPID().Format() ) ) );
         fprintf( aFile, "PLACE %g %g\n",
                  MapXTo( module->GetPosition().x ),
                  MapYTo( module->GetPosition().y ) );
@@ -888,7 +871,7 @@ static void CreateComponentsSection( FILE* aFile, BOARD* aPcb )
         fprintf( aFile, "ROTATION %g\n",
                  fp_orient / 10.0 );
         fprintf( aFile, "SHAPE \"%s\" %s %s\n",
-                 TO_UTF8( escapeString( getShapeName( module ) ) ),
+                 TO_UTF8( escapeString( module->GetFPID().Format() ) ),
                  mirror, flip );
 
         // Text on silk layer: RefDes and value (are they actually useful?)
@@ -1157,7 +1140,7 @@ static void CreateDevicesSection( FILE* aFile, BOARD* aPcb )
             continue;
 
         const MODULE* module = componentShape.first;
-        fprintf( aFile, "\nDEVICE \"DEV_%s\"\n", TO_UTF8( escapeString( shapeName ) ) );
+        fprintf( aFile, "\nDEVICE \"DEV_%s\"\n", TO_UTF8( escapeString( module->GetFPID().Format() ) ) );
         fprintf( aFile, "PART \"%s\"\n", TO_UTF8( escapeString( module->GetValue() ) ) );
         fprintf( aFile, "PACKAGE \"%s\"\n", TO_UTF8( escapeString( module->GetFPID().Format() ) ) );
 
